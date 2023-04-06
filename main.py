@@ -24,13 +24,16 @@ class Disk2D(pygame.sprite.Sprite):
         self.mass = mass
         self.t = 0
         self.radius = radius
+        
+        self.g = 9.8
 
         self.solver = ode(self.f)
         self.solver.set_integrator('dop853')
         self.solver.set_initial_value(self.state, self.t)
 
     def f(self, t, y):
-        return [y[2], y[3], 0, 0]
+        
+        return [y[2], y[3], 0, -self.g]
 
     def set_pos(self, pos):
         self.state[0:2] = pos
@@ -65,7 +68,7 @@ class World:
         self.paused = paused
         self.disks = []
         self.dt = DT
-        self.e= 1.
+        self.e= 0.1
 
     def add(self, radius, mass=1.0):
         disk = Disk2D(radius, mass)
@@ -140,11 +143,11 @@ class World:
             if dot_rel_vel < 0:
                 J = -(1 + self.e) * dot_rel_vel / mass_denom
 
-                vel_i_aftercollision = vel_i + n_ij * J / mass_i
+                vel_i_aftercollision = vel_i + n_ij * J / mass_i 
                 self.disks[i].set_vel(vel_i_aftercollision)
 
                 if j != -1:
-                    vel_j_aftercollision = vel_j - n_ij * J / mass_j
+                    vel_j_aftercollision = vel_j - n_ij * J / mass_j 
                     self.disks[j].set_vel(vel_j_aftercollision)
 
                 return True
@@ -183,12 +186,12 @@ def main():
     world = World()
     
     world.add(10, 1).set_pos([100,100]).set_vel([0,0])
-    world.add(10, 1).set_pos([110,160]).set_vel([0,-400])
+    world.add(10, 1).set_pos([110,160]).set_vel([0,0])
 
 
     while True:
         # 30 fps
-        clock.tick(30)
+        clock.tick(144)
 
         event = pygame.event.poll()
         if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
