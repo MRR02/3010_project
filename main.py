@@ -1,11 +1,14 @@
 import pygame, sys, random, os
 import numpy as np
 from scipy.integrate import ode
+import random
+import time
 
 WHITE      = (255, 255, 255)
-WIN_HEIGHT = 200
-WIN_WIDTH  = 200
+WIN_HEIGHT = 800
+WIN_WIDTH  = 800
 BLACK = (0,0,0)
+RED = (255, 0, 0)
 WALLS      = ["left", "right", "top", "bottom"]
 DT         = 0.01
 paused     = False
@@ -18,12 +21,12 @@ class Disk2D(pygame.sprite.Sprite):
         self.image = pygame.Surface([radius*2, radius*2])
         self.image.fill(BLACK)
         pygame.draw.circle(self.image, BLACK, (radius, radius), radius, radius)
-        
 
         self.state = [0, 0, 0, 0]
         self.mass = mass
         self.t = 0
         self.radius = radius
+        self.peg_state = False
         
         self.g = 9.8
 
@@ -44,10 +47,16 @@ class Disk2D(pygame.sprite.Sprite):
         self.state[2:] = vel
         self.solver.set_initial_value(self.state, self.t)
         return self
+    
+    def set_peg(self, peg):
+        self.peg_state = peg
+        if peg == True:
+            self.image.fill(RED)
 
     def update(self, dt):
-        self.t += dt
-        self.state = self.solver.integrate(self.t)
+        if self.peg_state == False:
+            self.t += dt
+            self.state = self.solver.integrate(self.t)
     
 
     def draw(self, surface):
@@ -172,8 +181,6 @@ def main():
     if sys.platform == "win32":
         in_windows = True
 
-
-
     pygame.init()
 
     clock = pygame.time.Clock()
@@ -182,11 +189,15 @@ def main():
     win_height = WIN_HEIGHT
     screen = pygame.display.set_mode((win_width, win_height))
 
-
     world = World()
     
-    world.add(10, 1).set_pos([100,100]).set_vel([0,0])
-    world.add(10, 1).set_pos([110,160]).set_vel([0,0])
+    world.add(25, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False)
+
+
+
+    for i in range(10):
+        random.seed(time.time())
+        world.add(45, 1).set_pos([random.randrange(50, 750, 3), random.randrange(150, 550, 3)]).set_vel([0,0]).set_peg(True)
 
 
     while True:
