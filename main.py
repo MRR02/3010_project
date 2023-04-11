@@ -1,8 +1,6 @@
 import pygame, sys, random, os
 import numpy as np
 from scipy.integrate import ode
-import random
-import time
 
 WHITE      = (255, 255, 255)
 WIN_HEIGHT = 800
@@ -10,7 +8,7 @@ WIN_WIDTH  = 800
 BLACK = (0,0,0)
 RED = (255, 0, 0)
 WALLS      = ["left", "right", "top", "bottom"]
-DT         = 0.01
+DT         = 0.05
 paused     = False
 in_windows = False
 
@@ -27,6 +25,7 @@ class Disk2D(pygame.sprite.Sprite):
         self.t = 0
         self.radius = radius
         self.peg_state = False
+        self.cursor_state = False
         
         self.g = 9.8
 
@@ -35,7 +34,6 @@ class Disk2D(pygame.sprite.Sprite):
         self.solver.set_initial_value(self.state, self.t)
 
     def f(self, t, y):
-        
         return [y[2], y[3], 0, -self.g]
 
     def set_pos(self, pos):
@@ -48,15 +46,17 @@ class Disk2D(pygame.sprite.Sprite):
         self.solver.set_initial_value(self.state, self.t)
         return self
     
-    def set_peg(self, peg):
+    def set_peg(self, peg, curse):
         self.peg_state = peg
+        self.cursor_state = curse
         if peg == True:
             self.image.fill(RED)
 
     def update(self, dt):
         if self.peg_state == False:
-            self.t += dt
-            self.state = self.solver.integrate(self.t)
+            if self.cursor_state == False:
+                self.t += dt
+                self.state = self.solver.integrate(self.t)
     
 
     def draw(self, surface):
@@ -77,7 +77,7 @@ class World:
         self.paused = paused
         self.disks = []
         self.dt = DT
-        self.e= 0.1
+        self.e= 0.3
 
     def add(self, radius, mass=1.0):
         disk = Disk2D(radius, mass)
@@ -105,6 +105,8 @@ class World:
         for i in range(0, len(self.disks)):
 
             for k in range(0, len(WALLS)):
+                #self.disks[0].set_pos([400, 700])
+                #self.disks[0].set_peg(False, True)
                 self.compute_collision_response(i, -1, WALLS[k])
 
             for j in range(i+1, len(self.disks)):
@@ -176,7 +178,6 @@ def update(screen, world):
 
 
 def main():
-    print('Press q to quit')
     global in_windows
     if sys.platform == "win32":
         in_windows = True
@@ -190,21 +191,49 @@ def main():
     screen = pygame.display.set_mode((win_width, win_height))
 
     world = World()
-    
-    world.add(25, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False)
 
+    x = 38
+    y = 600
+    row = 0
+    while y > 180:
+        if x > WIN_WIDTH:
+            if (row % 2) == 0:
+                x = 90
+            else:
+                x = 38
+            y -= 80
+            row += 1
+        world.add(20, 1000).set_pos([x, y]).set_vel([0,0]).set_peg(True, False)
+        x += 80
 
+    world.add(10, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False, True)
 
-    for i in range(10):
-        random.seed(time.time())
-        world.add(45, 1).set_pos([random.randrange(50, 750, 3), random.randrange(150, 550, 3)]).set_vel([0,0]).set_peg(True)
+    print('Press \'q\' to quit')
+    print('\'<-\' & \'->\' keys to move ball left and right, \'SPACE\' to drop ball')
+    print('10 balls remaining')
 
-
+    ball_count = 10
     while True:
         # 30 fps
         clock.tick(144)
 
         event = pygame.event.poll()
+        
+        if (ball_count > 0):
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+                world.disks[-1].set_pos([world.disks[-1].state[0] -7, world.disks[-1].state[1]])
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                world.disks[-1].set_pos([world.disks[-1].state[0] +7, world.disks[-1].state[1]])
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                world.disks[-1].set_peg(False, False)
+                ball_count -= 1
+                if (ball_count > 0):
+                    print(f'{ball_count} balls remaining')
+                    world.add(10, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False, True)
+                else:
+                    print('No more balls remaining')
+                #start = False
+
         if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
             pygame.quit()
             break
