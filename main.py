@@ -1,12 +1,18 @@
+#CSCI3010 Final Project
+#Michael DeMelo & Mohammadreza Rahbar
+#100779096 & 100781952
+
 import pygame, sys, random, os
 import numpy as np
 from scipy.integrate import ode
+import time
 
 WHITE      = (255, 255, 255)
 WIN_HEIGHT = 800
 WIN_WIDTH  = 800
 BLACK = (0,0,0)
 RED = (255, 0, 0)
+GREEN = (50, 205, 50)
 WALLS      = ["left", "right", "top", "bottom"]
 DT         = 0.05
 paused     = False
@@ -26,6 +32,7 @@ class Disk2D(pygame.sprite.Sprite):
         self.radius = radius
         self.peg_state = False
         self.cursor_state = False
+        self.goal_state = False
         
         self.g = 9.8
 
@@ -46,11 +53,14 @@ class Disk2D(pygame.sprite.Sprite):
         self.solver.set_initial_value(self.state, self.t)
         return self
     
-    def set_peg(self, peg, curse):
+    def set_type(self, peg, curse, goal):
         self.peg_state = peg
         self.cursor_state = curse
+        self.goal_state = goal
         if peg == True:
             self.image.fill(RED)
+        if goal == True:
+            self.image.fill(GREEN)
 
     def update(self, dt):
         if self.peg_state == False:
@@ -75,6 +85,8 @@ class Disk2D(pygame.sprite.Sprite):
 class World:
     def __init__(self):
         self.paused = paused
+        self.score = 0
+        self.balls_left = 10
         self.disks = []
         self.dt = DT
         self.e= 0.3
@@ -105,15 +117,36 @@ class World:
         for i in range(0, len(self.disks)):
 
             for k in range(0, len(WALLS)):
-                #self.disks[0].set_pos([400, 700])
-                #self.disks[0].set_peg(False, True)
-                self.compute_collision_response(i, -1, WALLS[k])
+                if self.compute_collision_response(i, -1, WALLS[k]):
+                    if (WALLS[k] == 'bottom'):
+                        self.balls_left -= 1
+                        self.disks[i].set_pos([900, 900])
+                        self.disks[i].set_type(True, False, False)
+                        if self.balls_left == 0:
+                            print(f'Your score is {self.score}/5')
+                            pygame.quit()
 
             for j in range(i+1, len(self.disks)):
                 if i == j:
                     continue
 
                 if self.compute_collision_response(i, j):
+                    if self.disks[i].goal_state == True:
+                        self.balls_left -= 1
+                        self.disks[i].set_pos([900, 900])
+                        self.disks[j].set_pos([900, 900])
+                        self.score += 1
+                        if self.balls_left == 0:
+                            print(f'Your score is {self.score}/5')
+                            pygame.quit()
+                    if self.disks[j].goal_state == True:
+                        self.balls_left -= 1
+                        self.disks[j].set_pos([900, 900])
+                        self.disks[i].set_pos([900, 900])
+                        self.score += 1
+                        if self.balls_left == 0:
+                            print(f'Your score is {self.score}/5')
+                            pygame.quit()
                     break
 
     def compute_collision_response(self, i, j, wall=""):
@@ -203,16 +236,30 @@ def main():
                 x = 38
             y -= 80
             row += 1
-        world.add(20, 1000).set_pos([x, y]).set_vel([0,0]).set_peg(True, False)
+        if y > 180:
+            world.add(20, 1000).set_pos([x, y]).set_vel([0,0]).set_type(True, False, False)
         x += 80
 
-    world.add(10, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False, True)
+    rand_goals = []
+    for i in range(5):
+        random.seed(time.time())
+        rand_x = random.randrange(0, 800, 3)
+        if len(rand_goals) > 0:
+            for j in range(len(rand_goals)):
+                if rand_x - rand_goals[j] <= 30:
+                    rand_x = random.randrange(0, 800, 3)
+        rand_goals.append(rand_x)
+        world.add(25, 1000).set_pos([rand_x, 50]).set_vel([0,0]).set_type(True, False, True)
 
-    print('Press \'q\' to quit')
-    print('\'<-\' & \'->\' keys to move ball left and right, \'SPACE\' to drop ball')
+    world.add(10, 1).set_pos([400,700]).set_vel([0,0]).set_type(False, True, False)
+
+    print('Welcome to BALL DROP\nChoose where to dop the balls and try to hit the GREEN goals\nControls:')
+    print('\'q\' to quit')
+    print('\'<-\' & \'->\' keys to move ball left and right\n\'SPACE\' to drop ball')
     print('10 balls remaining')
 
     ball_count = 10
+
     while True:
         # 30 fps
         clock.tick(144)
@@ -225,14 +272,14 @@ def main():
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                 world.disks[-1].set_pos([world.disks[-1].state[0] +7, world.disks[-1].state[1]])
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                world.disks[-1].set_peg(False, False)
+                prev_x = world.disks[-1].state[0]
+                world.disks[-1].set_type(False, False, False)
                 ball_count -= 1
                 if (ball_count > 0):
                     print(f'{ball_count} balls remaining')
-                    world.add(10, 1).set_pos([400,700]).set_vel([0,0]).set_peg(False, True)
+                    world.add(10, 1).set_pos([prev_x,700]).set_vel([0,0]).set_type(False, True, False)
                 else:
                     print('No more balls remaining')
-                #start = False
 
         if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
             pygame.quit()
